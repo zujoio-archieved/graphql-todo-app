@@ -1,0 +1,13 @@
+class UserRepository {
+  private static instance: UserRepository;
+
+  public static getInstance(): UserRepository {
+    if (!UserRepository.instance) {
+      UserRepository.instance = new UserRepository();
+    }
+
+    return UserRepository.instance;
+  }
+}
+
+export { UserRepository };
