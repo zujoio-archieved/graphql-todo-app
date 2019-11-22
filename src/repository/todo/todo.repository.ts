@@ -3,6 +3,8 @@ import { toObjectId, toBase64, fromBase64 } from "../../common/mongoose";
 import _ from "lodash";
 import { fromGlobalId, toGlobalId } from "graphql-relay";
 import { GLOBAL_ID_TYPES } from "../../graphql/globalIdTypes";
+import pubSub from "../../graphql/publisher";
+import { TODO_SUBSCRIPTION_TRIGGERS } from "../../common/constants/subscriptions";
 
 class TodoRepository {
   private static instance: TodoRepository;
@@ -69,13 +71,23 @@ class TodoRepository {
 
     await todo.save();
 
+    const todoEdge = {
+      cursor: toBase64(`${todo._id}`),
+      node: todo
+    };
+
+    pubSub.publish(
+      `${TODO_SUBSCRIPTION_TRIGGERS.TODO_CREATED}_${toGlobalId(
+        GLOBAL_ID_TYPES.User,
+        userId
+      )}`,
+      { todoEdge }
+    );
+
     return {
       status: "SUCCESS",
       message: "Todo created successfully!",
-      todoEdge: {
-        cursor: toBase64(`${todo._id}`),
-        node: todo
-      }
+      todoEdge
     };
   }
 
@@ -88,15 +100,34 @@ class TodoRepository {
     userId: string;
     edits: object;
   }) {
-    const updated = await Todo.updateOne(
+    const todo = await Todo.findOneAndUpdate(
       { _id: toObjectId(todoId), userId: toObjectId(userId) },
-      { ...edits }
+      { ...edits },
+      { new: true }
     );
 
-    if (!updated) {
+    if (!todo) {
       return { status: "FAILED", message: "Todo not found!" };
     }
-    return { status: "SUCCESS", message: "Todo updated successfully!" };
+
+    const todoEdge = {
+      cursor: toBase64(`${todo._id}`),
+      node: todo
+    };
+
+    pubSub.publish(
+      `${TODO_SUBSCRIPTION_TRIGGERS.TODO_EDITED}_${toGlobalId(
+        GLOBAL_ID_TYPES.User,
+        userId
+      )}`,
+      { todoEdge }
+    );
+
+    return {
+      status: "SUCCESS",
+      message: "Todo updated successfully!",
+      todoEdge
+    };
   }
 
   async deleteTodo(todoId: string, userId: string) {
@@ -105,6 +136,14 @@ class TodoRepository {
       userId: toObjectId(userId)
     });
     if (del.ok) {
+      pubSub.publish(
+        `${TODO_SUBSCRIPTION_TRIGGERS.TODO_DELETED}_${toGlobalId(
+          GLOBAL_ID_TYPES.User,
+          userId
+        )}`,
+        { deletedId: toGlobalId(GLOBAL_ID_TYPES.Todo, todoId) }
+      );
+
       return { status: "SUCCESS", message: "Todo deleted successfully!" };
     } else {
       throw new Error("Unable to delete todo!");
@@ -112,13 +151,34 @@ class TodoRepository {
   }
 
   async deleteCompletedTodos(userId: string) {
+    const todos = await Todo.find({
+      userId: toObjectId(userId),
+      completed: true
+    });
+
+    const ids = todos.map(todo =>
+      toGlobalId(GLOBAL_ID_TYPES.Todo, `${todo._id}`)
+    );
+
     const del = await Todo.deleteMany({
       userId: toObjectId(userId),
       completed: true
     });
+
+    const { deletedCount }: any = del;
+
+    if (deletedCount > 0) {
+      pubSub.publish(
+        `${TODO_SUBSCRIPTION_TRIGGERS.COMPLETED_TODOS_DELETED}_${toGlobalId(
+          GLOBAL_ID_TYPES.User,
+          userId
+        )}`,
+        { message: `deleted ${deletedCount} todos`, deletedIds: ids }
+      );
+    }
     return {
       status: "SUCCESS",
-      message: `${del.n} todos deleted!`
+      message: `${deletedCount} todos deleted!`
     };
   }
 

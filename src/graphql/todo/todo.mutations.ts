@@ -28,7 +28,8 @@ const GraphQLEditTodoMutation = mutationWithClientMutationId({
   },
   outputFields: {
     status: { type: GraphQLString },
-    message: { type: GraphQLString }
+    message: { type: GraphQLString },
+    todoEdge: { type: TodoEdgeType }
   },
   mutateAndGetPayload: async ({ id, completed, title }, ctx: iContext) => {
     const { userId }: any = await ctx.getUserId();
