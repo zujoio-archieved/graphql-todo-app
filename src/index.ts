@@ -5,7 +5,7 @@ import { schema } from "./graphql/schema";
 import { ContextRepository } from "./serverConfig/context";
 
 mongoose.connect(
-  "mongodb://192.168.0.6:40017/todo_app",
+  "mongodb://15.206.76.47:27017/todo-app",
   {
     useNewUrlParser: true,
     useUnifiedTopology: true

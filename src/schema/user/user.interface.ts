@@ -6,4 +6,5 @@ export interface UserModel extends mongoose.Document {
   password: string;
   firstName: string;
   lastName: string;
+  theme: number;
 }

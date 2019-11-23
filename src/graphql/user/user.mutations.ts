@@ -3,8 +3,14 @@ import {
   fromGlobalId,
   toGlobalId
 } from "graphql-relay";
-import { GraphQLNonNull, GraphQLString } from "graphql";
+import { GraphQLNonNull, GraphQLString, GraphQLInt } from "graphql";
 import { iContext } from "../../serverConfig/context";
+import { ThemeType } from "./user.typeDef";
+import { isContext } from "vm";
+import pubSub from "../publisher";
+import { availableThemes } from "./user.queries";
+import { GLOBAL_ID_TYPES } from "../globalIdTypes";
+import { USER_SUBSCRIPTION_TRIGGERS } from "../../common/constants/subscriptions";
 
 const GraphQLRegisterUserMutation = mutationWithClientMutationId({
   name: "register",
@@ -52,9 +58,21 @@ const GraphQLLoginUserMutation = mutationWithClientMutationId({
   }
 });
 
+const GraphqlChangeTheme = mutationWithClientMutationId({
+  name: "changeTheme",
+  inputFields: { index: { type: GraphQLInt } },
+  outputFields: { theme: { type: ThemeType } },
+  mutateAndGetPayload: async ({ index }, ctx: iContext) => {
+    const { userId }: any = await ctx.getUserId();
+
+    return ctx._userRepository.changeTheme({ userId, index });
+  }
+});
+
 const GraphQLUserMutations = {
   register: GraphQLRegisterUserMutation,
-  login: GraphQLLoginUserMutation
+  login: GraphQLLoginUserMutation,
+  changeTheme: GraphqlChangeTheme
 };
 
 export { GraphQLUserMutations };

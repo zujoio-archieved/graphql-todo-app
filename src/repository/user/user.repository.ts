@@ -2,7 +2,11 @@ import { User } from "../../schema/user/user.model";
 import { generateHash, compareHash } from "../../common/encryption";
 import { JWTRepository } from "../../common/jwt";
 import { toObjectId } from "../../common/mongoose";
-import { fromGlobalId } from "graphql-relay";
+import { fromGlobalId, toGlobalId } from "graphql-relay";
+import { availableThemes } from "../../graphql/user/user.queries";
+import pubSub from "../../graphql/publisher";
+import { USER_SUBSCRIPTION_TRIGGERS } from "../../common/constants/subscriptions";
+import { GLOBAL_ID_TYPES } from "../../graphql/globalIdTypes";
 
 class UserRepository {
   private static instance: UserRepository;
@@ -39,6 +43,26 @@ class UserRepository {
     await user.save();
 
     return { status: "SUCCESS", message: "User created successfully!" };
+  }
+
+  async changeTheme({ userId, index }: { userId: string; index: number }) {
+    const res = await User.findOneAndUpdate(
+      { _id: toObjectId(userId) },
+      { theme: index },
+      { new: true }
+    );
+
+    if (!res) {
+      throw new Error("Unable to change theme");
+    }
+    pubSub.publish(
+      `${USER_SUBSCRIPTION_TRIGGERS.USER_CHANGED_THEME}_${toGlobalId(
+        GLOBAL_ID_TYPES.User,
+        userId
+      )}`,
+      { theme: availableThemes[index] }
+    );
+    return { theme: availableThemes[index] };
   }
 
   async login({ email, password }: { email: string; password: string }) {
