@@ -5,13 +5,13 @@ import { schema } from "./graphql/schema";
 import { ContextRepository } from "./serverConfig/context";
 
 mongoose.connect(
-  "mongodb://15.206.76.47:27017/todo-app",
+  "mongodb://192.168.0.15:40017/todo-app",
   {
     useNewUrlParser: true,
     useUnifiedTopology: true
   },
   err => {
-    console.log("Server is connected to mongodb");
+    console.log("Server is connected to mongodb", err);
   }
 );
 
